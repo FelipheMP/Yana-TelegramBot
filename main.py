@@ -1,8 +1,8 @@
 import os
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 import httpx
-from typing import Optional
+from typing import Optional, Dict, Any
 
 app = FastAPI()
 
@@ -13,30 +13,42 @@ if not BOT_TOKEN or not SHEET_ID:
     raise RuntimeError("Set BOT_TOKEN and SHEET_ID in environment variables")
 
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-
 GOOGLE_SHEETS_API = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values"
 
-# Public sheet, no API key needed
+# Estado do usuário e meses disponíveis por ID
+user_states: Dict[int, str] = {}
+user_months: Dict[int, list] = {}
 
-# Cache months (assuming first column is 'Mês')
-cached_months = []
+class TelegramMessage(BaseModel):
+    message_id: int
+    text: Optional[str] = None
+    chat: Dict[str, Any]
+    from_: Dict[str, Any]
 
-# For tracking user states (very basic)
-user_states = {}
+    class Config:
+        fields = {'from_': 'from'}  # map 'from' JSON key to 'from_' attribute
 
 class TelegramUpdate(BaseModel):
     update_id: int
-    message: Optional[dict] = None
+    message: Optional[TelegramMessage] = None
 
 async def get_sheet_values(range_: str):
     url = f"{GOOGLE_SHEETS_API}/{range_}"
     async with httpx.AsyncClient() as client:
-        r = await client.get(url)
-        r.raise_for_status()
-        return r.json()
+        try:
+            r = await client.get(url)
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPError as e:
+            print(f"Erro ao buscar valores da planilha: {e}")
+            return {}
 
 async def send_message(chat_id: int, text: str, reply_markup=None):
-    data = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    data = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+    }
     if reply_markup:
         data["reply_markup"] = reply_markup
     async with httpx.AsyncClient() as client:
@@ -45,29 +57,26 @@ async def send_message(chat_id: int, text: str, reply_markup=None):
 @app.post(f"/webhook/{BOT_TOKEN}")
 async def telegram_webhook(update: TelegramUpdate):
     if not update.message:
-        return {"ok": True}  # Ignore non-message updates
+        return {"ok": True}
 
-    chat_id = update.message["chat"]["id"]
-    text = update.message.get("text", "")
+    chat_id = update.message.chat["id"]
+    user_id = update.message.from_["id"]
+    text = update.message.text or ""
 
-    user_id = update.message["from"]["id"]
-
-    # Check user state for month selection
+    # Usuário está selecionando o mês
     if user_states.get(user_id) == "waiting_for_month":
         month = text.strip()
-        # Validate month against cached months
-        if month not in cached_months:
-            await send_message(chat_id, f"Mês inválido. Por favor escolha um mês da lista.")
+        valid_months = user_months.get(user_id, [])
+
+        if month.lower() not in [m.lower() for m in valid_months]:
+            await send_message(chat_id, "Mês inválido. Por favor, escolha um mês da lista enviada.")
             return {"ok": True}
 
-        # Fetch the row for this month (assume sheet structure below)
-        # Columns: Mês, NUBANK, SANTANDER, INTER, TOTAL, Status
-        sheet_data = await get_sheet_values("A2:F1000")  # assuming max 1000 rows
-
-        # Find matching row
+        # Buscar dados da planilha
+        sheet_data = await get_sheet_values("A2:F1000")
         row = None
         for r in sheet_data.get("values", []):
-            if r[0] == month:
+            if r and r[0].lower() == month.lower():
                 row = r
                 break
 
@@ -75,10 +84,9 @@ async def telegram_webhook(update: TelegramUpdate):
             await send_message(chat_id, "Dados do mês não encontrados.")
             return {"ok": True}
 
-        # Fill missing columns with empty string if needed
-        row += [""] * (6 - len(row))
+        row += [""] * (6 - len(row))  # garantir que tenha 6 colunas
 
-        message = (
+        msg = (
             f"*Mês:* {row[0]}\n"
             f"NUBANK: {row[1]}\n"
             f"SANTANDER: {row[2]}\n"
@@ -87,28 +95,35 @@ async def telegram_webhook(update: TelegramUpdate):
             f"*Status:* {row[5]}"
         )
 
-        await send_message(chat_id, message)
+        await send_message(chat_id, msg)
         user_states.pop(user_id, None)
+        user_months.pop(user_id, None)
         return {"ok": True}
 
-    # If command /faturas
-    if text == "/faturas":
-        # Get months from sheet
+    # Comando /faturas
+    if text.strip() == "/faturas":
         sheet_data = await get_sheet_values("A2:A1000")
         months = [row[0] for row in sheet_data.get("values", []) if row]
+
         if not months:
             await send_message(chat_id, "Nenhuma fatura encontrada.")
             return {"ok": True}
 
-        global cached_months
-        cached_months = months
+        # Armazenar lista por usuário
+        user_months[user_id] = months
+        user_states[user_id] = "waiting_for_month"
 
-        months_list = "\n".join(months)
+        keyboard = {
+            "keyboard": [[{"text": m}] for m in months],
+            "one_time_keyboard": True,
+            "resize_keyboard": True
+        }
+
         await send_message(
             chat_id,
-            "Escolha o mês da fatura enviando o nome exatamente como na lista:\n\n" + months_list,
+            "Escolha o mês da fatura tocando em um dos botões ou digitando exatamente como mostrado:",
+            reply_markup=keyboard
         )
-        user_states[user_id] = "waiting_for_month"
         return {"ok": True}
 
     return {"ok": True}
