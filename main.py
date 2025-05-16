@@ -28,7 +28,7 @@ class TelegramUpdate(BaseModel):
     message: Optional[dict] = None
 
 async def fetch_csv_data():
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         response = await client.get(CSV_URL)
         response.raise_for_status()
         return list(csv.reader(StringIO(response.text)))
