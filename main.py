@@ -1,67 +1,46 @@
 import os
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
+import csv
 import httpx
-from typing import Optional, Dict, Any
-import json
+from io import StringIO
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from typing import Optional
+
+load_dotenv()
 
 app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SHEET_ID = os.getenv("SHEET_ID")
+CSV_URL = os.getenv("CSV_URL")
 
-if not BOT_TOKEN or not SHEET_ID:
-    raise RuntimeError("Set BOT_TOKEN and SHEET_ID in environment variables")
+if not BOT_TOKEN or not CSV_URL:
+    raise RuntimeError("Set BOT_TOKEN and CSV_URL in .env file")
 
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-GOOGLE_SHEETS_API = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values"
 
-# Estado do usuário e meses disponíveis por ID
-user_states: Dict[int, str] = {}
-user_months: Dict[int, list] = {}
-
-class TelegramChat(BaseModel):
-    id: int
-
-class TelegramUser(BaseModel):
-    id: int
-
-class TelegramMessage(BaseModel):
-    message_id: Optional[int]
-    text: Optional[str] = None
-    chat: Optional[TelegramChat]
-    from_: Optional[TelegramUser] = Field(None, alias="from")
-
-    class Config:
-        extra = "allow" # Permite campos extras
-        allow_population_by_field_name = True # Permite usar 'from_' no código
+# Armazena meses disponíveis
+cached_months = []
+user_states = {}
 
 class TelegramUpdate(BaseModel):
     update_id: int
-    message: Optional[TelegramMessage] = None
+    message: Optional[dict] = None
 
-    class Config:
-        extra = "allow"
-
-async def get_sheet_values(range_: str):
-    url = f"{GOOGLE_SHEETS_API}/{range_}"
+async def fetch_csv_data():
     async with httpx.AsyncClient() as client:
-        try:
-            r = await client.get(url)
-            r.raise_for_status()
-            return r.json()
-        except httpx.HTTPError as e:
-            print(f"Erro ao buscar valores da planilha: {e}")
-            return {}
+        response = await client.get(CSV_URL)
+        response.raise_for_status()
+        return list(csv.reader(StringIO(response.text)))
 
 async def send_message(chat_id: int, text: str, reply_markup=None):
     data = {
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "Markdown"
     }
     if reply_markup:
-        data["reply_markup"] = json.dumps(reply_markup)
+        data["reply_markup"] = reply_markup
     async with httpx.AsyncClient() as client:
         await client.post(f"{TELEGRAM_API}/sendMessage", json=data)
 
@@ -70,74 +49,48 @@ async def telegram_webhook(update: TelegramUpdate):
     if not update.message:
         return {"ok": True}
 
-    chat_id = update.message.chat.id if update.message.chat else None
-    user_id = update.message.from_.id if update.message.from_ else None
-    text = update.message.text or ""
+    chat_id = update.message["chat"]["id"]
+    text = update.message.get("text", "").strip()
+    user_id = update.message["from"]["id"]
 
-    if not chat_id or not user_id:
-        return {"ok": True}
-
-    # Usuário está selecionando o mês
     if user_states.get(user_id) == "waiting_for_month":
-        month = text.strip()
-        valid_months = user_months.get(user_id, [])
-
-        if month.lower() not in [m.lower() for m in valid_months]:
-            await send_message(chat_id, "Mês inválido. Por favor, escolha um mês da lista enviada.")
+        month = text
+        if month not in cached_months:
+            await send_message(chat_id, "Mês inválido. Por favor escolha um mês da lista.")
             return {"ok": True}
 
-        # Buscar dados da planilha
-        sheet_data = await get_sheet_values("A2:F1000")
-        row = None
-        for r in sheet_data.get("values", []):
-            if r and r[0].lower() == month.lower():
-                row = r
-                break
+        rows = await fetch_csv_data()
+        header = rows[0]
+        for row in rows[1:]:
+            if row and row[0].strip() == month:
+                row += [""] * (6 - len(row))
+                message = (
+                    f"*Mês:* {row[0]}\n"
+                    f"NUBANK: {row[1]}\n"
+                    f"SANTANDER: {row[2]}\n"
+                    f"INTER: {row[3]}\n"
+                    f"TOTAL: {row[4]}\n\n"
+                    f"*Status:* {row[5]}"
+                )
+                await send_message(chat_id, message)
+                user_states.pop(user_id, None)
+                return {"ok": True}
 
-        if not row:
-            await send_message(chat_id, "Dados do mês não encontrados.")
-            return {"ok": True}
-
-        row += [""] * (6 - len(row))  # garantir que tenha 6 colunas
-
-        msg = (
-            f"*Mês:* {row[0]}\n"
-            f"NUBANK: {row[1]}\n"
-            f"SANTANDER: {row[2]}\n"
-            f"INTER: {row[3]}\n"
-            f"TOTAL: {row[4]}\n\n"
-            f"*Status:* {row[5]}"
-        )
-
-        await send_message(chat_id, msg)
-        user_states.pop(user_id, None)
-        user_months.pop(user_id, None)
+        await send_message(chat_id, "Dados do mês não encontrados.")
         return {"ok": True}
 
-    # Comando /faturas
-    if text.strip() == "/faturas":
-        sheet_data = await get_sheet_values("A2:A1000")
-        months = [row[0] for row in sheet_data.get("values", []) if row]
+    if text == "/faturas":
+        rows = await fetch_csv_data()
+        months = [row[0] for row in rows[1:] if row]
+        global cached_months
+        cached_months = months
 
-        if not months:
-            await send_message(chat_id, "Nenhuma fatura encontrada.")
-            return {"ok": True}
-
-        # Armazenar lista por usuário
-        user_months[user_id] = months
-        user_states[user_id] = "waiting_for_month"
-
-        keyboard = {
-            "keyboard": [[{"text": m}] for m in months],
-            "one_time_keyboard": True,
-            "resize_keyboard": True
-        }
-
+        months_list = "\n".join(months)
         await send_message(
             chat_id,
-            "Escolha o mês da fatura tocando em um dos botões ou digitando exatamente como mostrado:",
-            reply_markup=keyboard
+            "Escolha o mês da fatura enviando o nome exatamente como na lista:\n\n" + months_list,
         )
+        user_states[user_id] = "waiting_for_month"
         return {"ok": True}
 
     return {"ok": True}
