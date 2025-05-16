@@ -102,7 +102,7 @@ async def telegram_webhook(update: TelegramUpdate):
         for card in cards:
             venc = card["D. VENC"].strip()
             status = card["SITUAÇÃO"].strip()
-            msg_lines.append(f"{card['CARTÃO'].strip()} - Dia de vencimento: {venc} - Situação: {status}")
+            msg_lines.append(f"{card['CARTÃO'].strip()}\n- Vencimento: Dia {venc}\n- Situação: {status}")
 
         # Assuming all cards have the same month in "MÊS" field
         month = cards[0]["MÊS"].strip()
