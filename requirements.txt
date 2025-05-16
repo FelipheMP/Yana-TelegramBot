@@ -1,4 +1,4 @@
-python3-dotenv
+python-dotenv
 fastapi
 uvicorn
 httpx
