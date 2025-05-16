@@ -96,8 +96,7 @@ Create a web service using `main:app` as the entry point. The `RENDER_URL` is us
 
 Here’s how the bot outputs information in a Telegram chat:
 
-<img src="./images/yana_usage01.jpg" height="700"/>
-<img src="./images/yana_usage02.jpg" height="700"/>
+<img src="./images/yana_usage01.jpg" height="700"/> <img src="./images/yana_usage02.jpg" height="700"/>
 
 ---
 
