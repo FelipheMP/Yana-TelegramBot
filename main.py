@@ -81,8 +81,8 @@ async def telegram_webhook(update: TelegramUpdate):
 
     if text == "/faturas":
         rows = await fetch_csv_data()
-        months = [row[0] for row in rows[1:] if row]
         global cached_months
+        months = [row[0] for row in rows[1:] if row]
         cached_months = months
 
         months_list = "\n".join(months)
