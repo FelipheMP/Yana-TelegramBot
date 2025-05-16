@@ -61,6 +61,11 @@ async def send_message(chat_id: int, text: str, reply_markup=None):
     async with httpx.AsyncClient() as client:
         await client.post(f"{TELEGRAM_API}/sendMessage", json=data)
 
+# App init response
+@app.get("/")
+async def health_check():
+    return {"status": "ok"}
+
 # Avoid Render cold start
 @app.get("/ping")
 async def ping():
@@ -122,19 +127,19 @@ async def telegram_webhook(update: TelegramUpdate):
 
 # ======= Self ping for trying to avoid render sleeping =======
 async def self_ping():
-    await asyncio.sleep(10)  # espera app subir
-    url = f"{RENDER_URL}/webhook/{BOT_TOKEN}"
+    await asyncio.sleep(10)  # Wait for app init
+    url = f"{RENDER_URL}/ping"
     print("Iniciando ping interno para evitar sleep do Render...")
 
     while True:
         try:
             async with httpx.AsyncClient() as client:
-                r = await client.post(url, json={})
+                r = await client.get(url)
                 print(f"Ping interno: status {r.status_code}")
         except Exception as e:
             print(f"Erro no ping interno: {e}")
 
-        await asyncio.sleep(14 * 60)  # 14 minutos
+        await asyncio.sleep(10 * 60)  # 10m
 
 @app.on_event("startup")
 async def startup_event():
