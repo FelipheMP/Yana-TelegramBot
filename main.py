@@ -97,10 +97,10 @@ async def telegram_webhook(update: TelegramUpdate):
             msg_lines.append(f"*A PAGAR*: {format_currency(total)}")
 
         # Add status and vencimento info
-        # Assuming vencimento (due date) is same per card from "D.VENC"
+        # Assuming vencimento (due date) is same per card from "D. VENC"
         msg_lines.append("\n*STATUS E VENCIMENTO:*")
         for card in cards:
-            venc = card["D.VENC"].strip()
+            venc = card["D. VENC"].strip()
             status = card["SITUAÇÃO"].strip()
             msg_lines.append(f"{card['CARTÃO'].strip()} - Dia de vencimento: {venc} - Situação: {status}")
 
