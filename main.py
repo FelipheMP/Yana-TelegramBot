@@ -147,10 +147,10 @@ async def telegram_webhook(update: TelegramUpdate):
         return {"ok": True}
 
     # Handle other non commands messages from user
-    elif text.lower() is not "/faturas" or "/start":
+    elif text.lower() not "/faturas" or "/start":
         await send_message(
         chat_id,
-            "🥺 *Hmm... Desculpa!*\n\nSó consigo te ajudar por meio de comandos.\n\nTenta usar:\n👉 `/faturas`",
+            "🥺 *Hmm... Desculpa!*\n\nSó consigo te ajudar por meio de comandos.\n\nTenta usar:\n👉 /faturas",
         )
         return {"ok": True}
 
