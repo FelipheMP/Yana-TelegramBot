@@ -95,30 +95,51 @@ async def telegram_webhook(update: TelegramUpdate):
             return {"ok": True}
 
         # Format message
-        msg_lines = []
+        msg_lines = [f"💳 *Faturas do mês: {cards[0]['MÊS'].strip()}*\n"]
+
+        # Colors per bank
+        emojis = {
+            "NUBANK": "🟣",
+            "INTER": "🟠",
+            "SANTANDER": "🔴"
+        }
+
+        # Bills per card
         for card in cards:
+            nome = card["CARTÃO"].strip().upper()
             total = parse_brl_to_float(card["TOTAL"])
-            msg_lines.append(f"*{card['CARTÃO'].strip()}*: {format_currency(total)}")
+            emoji = emojis.get(nome, "💳")
+            msg_lines.append(f"{emoji} *{nome.title()}*: {format_currency(total)}")
 
         # Add summaries if found
         if total_final:
             total = parse_brl_to_float(total_final["TOTAL"])
-            msg_lines.append(f"\n*TOTAL FINAL*: {format_currency(total)}")
+            msg_lines.append(f"\n📊 *TOTAL FINAL:* {format_currency(total)}")
         if a_pagar:
             total = parse_brl_to_float(a_pagar["TOTAL"])
-            msg_lines.append(f"*A PAGAR*: {format_currency(total)}")
+            msg_lines.append(f"💰 *A PAGAR:* {format_currency(total)}")
 
         # Add status and vencimento info
-        # Assuming vencimento (due date) is same per card from "D. VENC"
-        msg_lines.append("\n*STATUS E VENCIMENTO:*")
-        for card in cards:
-            venc = card["D. VENC"].strip()
-            status = card["SITUAÇÃO"].strip()
-            msg_lines.append(f"{card['CARTÃO'].strip()}\n- Vencimento: Dia {venc}\n- Situação: {status}")
+        msg_lines.append("\n📅 *STATUS E VENCIMENTO:*")
 
-        # Assuming all cards have the same month in "MÊS" field
-        month = cards[0]["MÊS"].strip()
-        msg_lines.append(f"\n*MÊS:* {month}")
+        status_emojis = {
+            "ABERTA": "📌",
+            "FECHADA": "✅",
+            "PAGA": "💸",
+            "ATRASADA": "⚠️"
+        }
+
+        for card in cards:
+            nome = card["CARTÃO"].strip().upper()
+            venc = card["D. VENC"].strip()
+            status = card["SITUAÇÃO"].strip().upper()
+            emoji = emojis.get(nome, "💳")
+            status_emote = status_emojis.get(status, "📌")
+            msg_lines.append(
+                f"- {emoji} *{nome.title()}*\n"
+                f"  📆 Vencimento: *Dia {venc}*\n"
+                f"  {status_emote} Situação: *{status}*"
+            )
 
         message = "\n".join(msg_lines)
 
