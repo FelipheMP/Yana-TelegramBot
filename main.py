@@ -138,7 +138,7 @@ async def telegram_webhook(update: TelegramUpdate):
             msg_lines.append(
                 f"- {emoji} *{nome.title()}*\n"
                 f"  📆 Vencimento: *Dia {venc}*\n"
-                f"  {status_emote} Situação: *{status}*"
+                f"  {status_emote} Situação: *{status}*\n"
             )
 
         message = "\n".join(msg_lines)
