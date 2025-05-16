@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import httpx
 from typing import Optional, Dict, Any
 import json
@@ -20,18 +20,28 @@ GOOGLE_SHEETS_API = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/v
 user_states: Dict[int, str] = {}
 user_months: Dict[int, list] = {}
 
+class TelegramChat(BaseModel):
+    id: int
+
+class TelegramUser(BaseModel):
+    id: int
+
 class TelegramMessage(BaseModel):
-    message_id: int
+    message_id: Optional[int]
     text: Optional[str] = None
-    chat: Dict[str, Any]
-    from_: Dict[str, Any]
+    chat: Optional[TelegramChat]
+    from_: Optional[TelegramUser] = Field(None, alias="from")
 
     class Config:
-        fields = {'from_': 'from'}  # map 'from' JSON key to 'from_' attribute
+        extra = "allow" # Permite campos extras
+        allow_population_by_field_name = True # Permite usar 'from_' no código
 
 class TelegramUpdate(BaseModel):
     update_id: int
     message: Optional[TelegramMessage] = None
+
+    class Config:
+        extra = "allow"
 
 async def get_sheet_values(range_: str):
     url = f"{GOOGLE_SHEETS_API}/{range_}"
@@ -60,9 +70,12 @@ async def telegram_webhook(update: TelegramUpdate):
     if not update.message:
         return {"ok": True}
 
-    chat_id = update.message.chat["id"]
-    user_id = update.message.from_["id"]
+    chat_id = update.message.chat.id if update.message.chat else None
+    user_id = update.message.from_.id if update.message.from_ else None
     text = update.message.text or ""
+
+    if not chat_id or not user_id:
+        return {"ok": True}
 
     # Usuário está selecionando o mês
     if user_states.get(user_id) == "waiting_for_month":
