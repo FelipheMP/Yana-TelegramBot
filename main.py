@@ -168,7 +168,7 @@ async def self_ping():
         except Exception as e:
             print(f"Erro no ping interno: {e}")
 
-        await asyncio.sleep(10 * 60)  # 10m
+        await asyncio.sleep(14 * 60)  # 14m
 
 @app.on_event("startup")
 async def startup_event():
