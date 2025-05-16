@@ -59,6 +59,11 @@ async def send_message(chat_id: int, text: str, reply_markup=None):
     async with httpx.AsyncClient() as client:
         await client.post(f"{TELEGRAM_API}/sendMessage", json=data)
 
+# Avoid Render cold start
+@app.get("/ping")
+async def ping():
+    return {"status": "ok"}
+
 @app.post(f"/webhook/{BOT_TOKEN}")
 async def telegram_webhook(update: TelegramUpdate):
     if not update.message:
