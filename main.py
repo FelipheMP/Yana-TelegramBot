@@ -1,6 +1,7 @@
 import os
 import csv
 import httpx
+import asyncio
 from io import StringIO
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CSV_URL = os.getenv("CSV_URL")
+RENDER_URL = os.getenv("RENDER_URL")
 
 if not BOT_TOKEN or not CSV_URL:
     raise RuntimeError("Set BOT_TOKEN and CSV_URL in .env file")
@@ -117,5 +119,25 @@ async def telegram_webhook(update: TelegramUpdate):
 
         await send_message(chat_id, message)
         return {"ok": True}
+
+# ======= Self ping for trying to avoid render sleeping =======
+async def self_ping():
+    await asyncio.sleep(10)  # espera app subir
+    url = f"{RENDER_URL}/webhook/{BOT_TOKEN}"
+    print("Iniciando ping interno para evitar sleep do Render...")
+
+    while True:
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.post(url, json={})
+                print(f"Ping interno: status {r.status_code}")
+        except Exception as e:
+            print(f"Erro no ping interno: {e}")
+
+        await asyncio.sleep(14 * 60)  # 14 minutos
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(self_ping())
 
     return {"ok": True}
