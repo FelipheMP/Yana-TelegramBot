@@ -52,7 +52,9 @@ async def telegram_webhook(update: TelegramUpdate):
     chat_id = update.message["chat"]["id"]
     text = update.message.get("text", "").strip()
     user_id = update.message["from"]["id"]
-
+    
+    global cached_months
+    
     if user_states.get(user_id) == "waiting_for_month":
         month = text
         if month not in cached_months:
@@ -81,7 +83,6 @@ async def telegram_webhook(update: TelegramUpdate):
 
     if text == "/faturas":
         rows = await fetch_csv_data()
-        global cached_months
         months = [row[0] for row in rows[1:] if row]
         cached_months = months
 
