@@ -80,7 +80,8 @@ async def telegram_webhook(update: TelegramUpdate):
     text = update.message.get("text", "").strip()
     user_id = update.message["from"]["id"]
 
-    if text == "/faturas":
+    # Handle /faturas command
+    if text.lower() == "/faturas":
         rows = await fetch_csv_data()
 
         # Filter cards data
@@ -124,8 +125,7 @@ async def telegram_webhook(update: TelegramUpdate):
 
         status_emojis = {
             "ABERTA": "📌",
-            "FECHADA": "✅",
-            "PAGA": "💸",
+            "PAGA": "✅",
             "ATRASADA": "⚠️"
         }
 
@@ -144,6 +144,14 @@ async def telegram_webhook(update: TelegramUpdate):
         message = "\n".join(msg_lines)
 
         await send_message(chat_id, message)
+        return {"ok": True}
+
+    # Handle other non commands messages from user
+    elif text.lower() is not "/faturas" or "/start":
+        await send_message(
+        chat_id,
+            "🥺 *Hmm... Desculpa!*\n\nSó consigo te ajudar por meio de comandos.\n\nTenta usar:\n👉 `/faturas`",
+        )
         return {"ok": True}
 
 # ======= Self ping for trying to avoid render sleeping =======
