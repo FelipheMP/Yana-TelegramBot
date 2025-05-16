@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import httpx
 from typing import Optional, Dict, Any
+import json
 
 app = FastAPI()
 
@@ -50,7 +51,7 @@ async def send_message(chat_id: int, text: str, reply_markup=None):
         "parse_mode": "Markdown",
     }
     if reply_markup:
-        data["reply_markup"] = reply_markup
+        data["reply_markup"] = json.dumps(reply_markup)
     async with httpx.AsyncClient() as client:
         await client.post(f"{TELEGRAM_API}/sendMessage", json=data)
 
