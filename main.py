@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional
+from collections import defaultdict
 
 load_dotenv()
 
@@ -91,6 +92,15 @@ async def telegram_webhook(update: TelegramUpdate):
         total_final = next((r for r in rows if r["CARTÃO"].strip().upper() == "TOTAL FINAL"), None)
         a_pagar = next((r for r in rows if r["CARTÃO"].strip().upper() == "A PAGAR"), None)
 
+        totais_por_pessoa = defaultdict(float)
+
+        for row in rows:
+            pessoa = row.get("PESSOA", "").strip()
+            valor_str = row.get("VALOR (R$)", "").strip()
+            if pessoa and valor_str:
+                valor = parse_brl_to_float(valor_str)
+                totais_por_pessoa[pessoa] += valor
+        
         if not cards:
             await send_message(chat_id, "Não foi possível encontrar os dados dos cartões na planilha.")
             return {"ok": True}
@@ -120,6 +130,11 @@ async def telegram_webhook(update: TelegramUpdate):
             total = parse_brl_to_float(a_pagar["TOTAL"])
             msg_lines.append(f"💰 *A PAGAR:* {format_currency(total)}")
 
+        if totais_por_pessoa:
+            msg_lines.append("\n🔍 *POR PESSOA:*")
+            for pessoa, total in totais_por_pessoa.items():
+                msg_lines.append(f"👤 *{pessoa}*: {format_currency(total)}")
+        
         # Add status and vencimento info
         msg_lines.append("\n📅 *STATUS E VENCIMENTO:*")
 
