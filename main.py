@@ -131,9 +131,12 @@ async def telegram_webhook(update: TelegramUpdate):
             msg_lines.append(f"💰 *A PAGAR:* {format_currency(total)}")
 
         if totais_por_pessoa:
+            # Emoji per person
+            pessoa_emojis = ["👩‍🏫💼", "👩✨", "👨‍💻🎮"]
             msg_lines.append("\n🔍 *POR PESSOA:*")
-            for pessoa, total in totais_por_pessoa.items():
-                msg_lines.append(f"👤 *{pessoa}*: {format_currency(total)}")
+            for i, (pessoa, total) in enumerate(totais_por_pessoa.items()):
+                emoji = pessoa_emojis[i] if i < len(pessoa_emojis) else "👤"
+                msg_lines.append(f"{emoji} *{pessoa}*: {format_currency(total)}")
         
         # Add status and vencimento info
         msg_lines.append("\n📅 *STATUS E VENCIMENTO:*")
