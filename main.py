@@ -14,8 +14,8 @@ app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CSV_URL = os.getenv("CSV_URL")
-MPERSONAL_CHAT_ID= os.getenv("MPERSONAL_CHAT_ID")
-FPERSONAL_CHAT_ID= os.getenv("FPERSONAL_CHAT_ID")
+MPERSONAL_CHAT_ID= int(os.getenv("MPERSONAL_CHAT_ID"))
+FPERSONAL_CHAT_ID= int(os.getenv("FPERSONAL_CHAT_ID"))
 
 if not BOT_TOKEN or not CSV_URL:
     raise RuntimeError("Set BOT_TOKEN and CSV_URL in .env file")
