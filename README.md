@@ -125,6 +125,6 @@ Made with ❤️ by [FelipheMP](https://github.com/FelipheMP)
 
 ---
 
-## 📄 License
+## 📄 License 
 
 GPL-3.0. See [LICENSE](./LICENSE) for more details.
