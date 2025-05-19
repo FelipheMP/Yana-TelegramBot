@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: yana-faturas-telegram-bot
+    name: yana-telegram-bot
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"

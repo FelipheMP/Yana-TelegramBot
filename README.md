@@ -1,13 +1,13 @@
 # Yana 🧾📱
 
 <p align="center">
-  <img src="./images/image.png" alt="Yana Faturas Logo" width="200"/>
+  <img src="./images/image.png" alt="Yana Logo" width="200"/>
 </p>
 
 <p align="center">
   <img src="https://uptime.betterstack.com/status-badges/v1/monitor/1xqwf.svg" alt="Better Stack Badge"/>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue"/>
-  <img src="https://img.shields.io/github/license/FelipheMP/Yana-Faturas-TelegramBot"/>
+  <img src="https://img.shields.io/github/license/FelipheMP/Yana-TelegramBot"/>
   <img src="https://img.shields.io/badge/Made%20with-%E2%9D%A4-red"/>
 </p>
 
@@ -52,10 +52,11 @@ pip install -r requirements.txt
 Your `requirements.txt` should include:
 
 ```
-httpx
-fastapi
 python-dotenv
+fastapi
 uvicorn
+httpx
+pydantic
 ```
 
 ---
@@ -67,7 +68,8 @@ Create a `.env` file at the root of the project:
 ```env
 BOT_TOKEN=your_telegram_bot_token
 CSV_URL=public_link_to_your_google_sheets_csv
-RENDER_URL=optional_url_for_render_deployment
+PERSONAL_CHAT_ID=your_personal_chat_id
+GROUP_CHAT_ID=your_group_chat_id
 ```
 
 > ⚠️ **Never commit your `.env` file to version control!**  
@@ -89,7 +91,7 @@ You can use a tool like [ngrok](https://ngrok.com/) to test Telegram webhook loc
 
 ### ☁️ Deployment to Render
 
-Create a web service using `main:app` as the entry point. The `RENDER_URL` is used to ping itself periodically to prevent free-tier sleeping.
+Create a web service using `main:app` as the entry point.
 
 ---
 

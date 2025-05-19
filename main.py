@@ -1,7 +1,6 @@
 import os
 import csv
 import httpx
-import asyncio
 from io import StringIO
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -15,7 +14,8 @@ app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CSV_URL = os.getenv("CSV_URL")
-RENDER_URL = os.getenv("RENDER_URL")
+MPERSONAL_CHAT_ID= os.getenv("MPERSONAL_CHAT_ID")
+FPERSONAL_CHAT_ID= os.getenv("FPERSONAL_CHAT_ID")
 
 if not BOT_TOKEN or not CSV_URL:
     raise RuntimeError("Set BOT_TOKEN and CSV_URL in .env file")
@@ -81,8 +81,19 @@ async def telegram_webhook(update: TelegramUpdate):
     text = update.message.get("text", "").strip()
     user_id = update.message["from"]["id"]
 
+    if chat_id not in [MPERSONAL_CHAT_ID, FPERSONAL_CHAT_ID]:
+        await send_message(
+            chat_id,
+            "❌ Oops!\n\nI'm sorry, but I don’t recognize your ID.\nOnly authorized users can access this feature.\n"
+            + "If you think this is a mistake, feel free to reach out and I’ll take a look for you. 💁‍♀️"
+            + "\n\n"
+            + "❌ Opa!\n\nDesculpa, mas não reconheço o seu ID.\nApenas usuários autorizados podem acessar este recurso.\n"
+            + "Se você acha que isso foi um engano, é só me chamar que eu dou uma olhadinha pra você. 💁‍♀️"
+        )
+        return {"ok": True}
+
     # Handle /faturas command
-    if text.lower() == "/faturas":
+    elif text.lower() == "/faturas":
         rows = await fetch_csv_data()
 
         # Filter cards data
@@ -168,28 +179,8 @@ async def telegram_webhook(update: TelegramUpdate):
     elif text.lower() not in ["/faturas", "/start"]:
         await send_message(
         chat_id,
-            "🥺 *Hmm... Desculpa!*\n\nSó consigo te ajudar por meio de comandos.\n\nTenta usar:\n👉 /faturas",
+            "🥺 *Hmm... Desculpa!*\n\nSó consigo te ajudar por meio de comandos.\n\nTenta usar:\n👉 /faturas"
         )
         return {"ok": True}
 
-# ======= Self ping for trying to avoid render sleeping =======
-async def self_ping():
-    await asyncio.sleep(10)  # Wait for app init
-    url = f"{RENDER_URL}/ping"
-    print("Iniciando ping interno para evitar sleep do Render...")
-
-    while True:
-        try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(url)
-                print(f"Ping interno: status {r.status_code}")
-        except Exception as e:
-            print(f"Erro no ping interno: {e}")
-
-        await asyncio.sleep(14 * 60)  # 14m
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(self_ping())
-
-    return {"ok": True}
+    return None
