@@ -68,6 +68,7 @@ Create a `.env` file at the root of the project:
 ```env
 BOT_TOKEN=your_telegram_bot_token
 CSV_URL=public_link_to_your_google_sheets_csv
+RENDER_URL=optional_url_for_render_deployment
 PERSONAL_CHAT_ID=your_personal_chat_id
 GROUP_CHAT_ID=your_group_chat_id
 ```
@@ -91,7 +92,7 @@ You can use a tool like [ngrok](https://ngrok.com/) to test Telegram webhook loc
 
 ### ☁️ Deployment to Render
 
-Create a web service using `main:app` as the entry point.
+Create a web service using `main:app` as the entry point. The `RENDER_URL` is used to ping itself periodically to prevent free-tier sleeping.
 
 ---
 
