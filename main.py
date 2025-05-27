@@ -179,7 +179,9 @@ async def telegram_webhook(update: TelegramUpdate):
                 f"  {status_emote} Situação: *{status}*\n"
             )
 
-        msg_lines.append(f"\n📊 Link para detalhamento de faturas:\n👉 {SHEET_LINK}")
+        msg_lines.append(
+            f"\n📊 Link para detalhamento de faturas:\n👉 [SPREADSHEET]({SHEET_LINK})\n"
+        )
 
         message = "\n".join(msg_lines)
 
