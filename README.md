@@ -67,7 +67,7 @@ pydantic
 Create a `.env` file at the root of the project:
 
 ```env
-BOT_USERNAME=YourBotUsername
+BOT_USERNAME=yourbotusername
 BOT_TOKEN=your_telegram_bot_token
 CSV_URL=public_link_to_your_google_sheets_csv
 SHEET_LINK=https://your_shared_sheet_link
