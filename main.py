@@ -13,6 +13,7 @@ load_dotenv()
 
 app = FastAPI()
 
+BOT_USERNAME = os.getenv("BOT_USERNAME")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CSV_URL = os.getenv("CSV_URL")
 SHEET_LINK = os.getenv("SHEET_LINK")
@@ -101,7 +102,7 @@ async def telegram_webhook(update: TelegramUpdate):
         return {"ok": True}
 
     # Handle /faturas command
-    elif text.lower() == "/faturas":
+    elif text.lower() in ["/faturas", f"/faturas@{BOT_USERNAME}"]:
         rows = await fetch_csv_data()
 
         # Filter cards data
