@@ -71,8 +71,7 @@ BOT_TOKEN=your_telegram_bot_token
 CSV_URL=public_link_to_your_google_sheets_csv
 SHEET_LINK=https://your_shared_sheet_link
 RENDER_URL=optional_url_for_render_deployment
-PERSONAL_CHAT_ID=your_personal_chat_id
-GROUP_CHAT_ID=your_group_chat_id
+AUTHORIZED_CHAT_IDS=your_personal_chat_id,another_one,group_chat_id,another_one
 ```
 
 > ⚠️ **Never commit your `.env` file to version control!**  

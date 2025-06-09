@@ -17,8 +17,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CSV_URL = os.getenv("CSV_URL")
 SHEET_LINK = os.getenv("SHEET_LINK")
 RENDER_URL = os.getenv("RENDER_URL")
-MPERSONAL_CHAT_ID = int(os.getenv("MPERSONAL_CHAT_ID"))
-FPERSONAL_CHAT_ID = int(os.getenv("FPERSONAL_CHAT_ID"))
+AUTHORIZED_CHAT_IDS = list(
+    map(int, os.getenv("AUTHORIZED_CHAT_IDS", "").split(","))
+)
 
 if not BOT_TOKEN or not CSV_URL:
     raise RuntimeError("Set BOT_TOKEN and CSV_URL in .env file")
@@ -88,7 +89,7 @@ async def telegram_webhook(update: TelegramUpdate):
     text = update.message.get("text", "").strip()
     user_id = update.message["from"]["id"]
 
-    if chat_id not in [MPERSONAL_CHAT_ID, FPERSONAL_CHAT_ID]:
+    if chat_id not in AUTHORIZED_CHAT_IDS:
         await send_message(
             chat_id,
             "❌ Oops!\n\nI'm sorry, but I don’t recognize your ID.\nOnly authorized users can access this feature.\n"
