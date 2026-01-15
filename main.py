@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from typing import Optional
 from collections import defaultdict
 
+from datetime import datetime, timedelta, timezone, time, date
+
 load_dotenv()
 
 app = FastAPI()
@@ -28,6 +30,12 @@ if not BOT_TOKEN or not CSV_URL:
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 user_states = {}
+
+# ======= Due-date reminders config =======
+TZ = timezone(timedelta(hours=-3))
+REMINDER_HOURS = [9, 15]
+REMINDER_DAYS = {2, 1, 0}
+sent_reminders = set()
 
 
 class TelegramUpdate(BaseModel):
@@ -199,6 +207,113 @@ async def telegram_webhook(update: TelegramUpdate):
         return {"ok": True}
 
 
+# ======= Reminders for due-date notifications =======
+def parse_due_day(value: str) -> int:
+    """Extract the day-of-month from the sheet field (e.g., '25', 'Dia 25'). Clamps to 1..31."""
+    digits = "".join(ch for ch in value if ch.isdigit())
+    if not digits:
+        return 1
+    try:
+        d = int(digits)
+        return max(1, min(31, d))
+    except Exception:
+        return 1
+
+
+def next_due_date_for_day(due_day: int, now: datetime) -> date:
+    """Return the next calendar date for the given day-of-month from 'now', clamped to the month's last day."""
+    def make_date(year: int, month: int, day_in: int) -> date:
+        if month == 12:
+            next_month_first = date(year + 1, 1, 1)
+        else:
+            next_month_first = date(year, month + 1, 1)
+        last_day = (next_month_first - timedelta(days=1)).day
+        return date(year, month, min(day_in, last_day))
+
+    y, m = now.year, now.month
+    cand = make_date(y, m, due_day)
+    if cand >= now.date():
+        return cand
+    if m == 12:
+        return make_date(y + 1, 1, due_day)
+    return make_date(y, m + 1, due_day)
+
+
+async def run_reminders(slot: str):
+    """Send reminders for cards whose days until due are in REMINDER_DAYS, avoiding duplicates per (day, slot)."""
+    now = datetime.now(TZ)
+    rows = await fetch_csv_data()
+    cards = [
+        r
+        for r in rows
+        if r["CARTÃO"].strip().upper() in {"NUBANK", "INTER", "SANTANDER"}
+    ]
+    emojis = {"NUBANK": "🟣", "INTER": "🟠", "SANTANDER": "🔴"}
+
+    for card in cards:
+        name = card["CARTÃO"].strip().upper()
+        status = card.get("SITUAÇÃO", "").strip().upper()
+        due_str = card.get("D. VENC", "").strip()
+        total = parse_brl_to_float(card.get("TOTAL", "").strip())
+        if not due_str:
+            continue
+        due_day = parse_due_day(due_str)
+        due_date = next_due_date_for_day(due_day, now)
+        days_left = (due_date - now.date()).days
+        if days_left not in REMINDER_DAYS:
+            continue
+        if status == "PAGA":
+            continue
+        key = f"{now.date().isoformat()}|{slot}|{name}|{days_left}"
+        if key in sent_reminders:
+            continue
+        emoji = emojis.get(name, "💳")
+        if days_left > 0:
+            text = (
+                f"{emoji} Lembrete: faltam {days_left} dia(s) para o vencimento de {name.title()} (Dia {due_day}).\n"
+                f"Valor: {format_currency(total)}\n"
+                f"Situação: {status}\n"
+            )
+        else:
+            text = (
+                f"{emoji} Lembrete: hoje é o vencimento de {name.title()} (Dia {due_day}).\n"
+                f"Valor: {format_currency(total)}\n"
+                f"Situação: {status}\n"
+            )
+        for cid in AUTHORIZED_CHAT_IDS:
+            await send_message(cid, text)
+        sent_reminders.add(key)
+
+
+def next_run_after(now: datetime):
+    """Select the next scheduled run at REMINDER_HOURS today/tomorrow in TZ, returning (datetime, slot)."""
+    candidates = []
+    for day_offset in range(0, 2):
+        base_date = (now + timedelta(days=day_offset)).date()
+        for hr in REMINDER_HOURS:
+            dt = datetime.combine(base_date, time(hr, 0), TZ)
+            if dt >= now:
+                candidates.append((dt, f"{hr:02d}"))
+    candidates.sort(key=lambda x: x[0])
+    if candidates:
+        return candidates[0]
+    return now + timedelta(hours=12), "00"
+
+
+async def reminders_scheduler():
+    """Wait until the next scheduled time and run reminders in a loop. Starts shortly after app startup."""
+    await asyncio.sleep(10)
+    while True:
+        now = datetime.now(TZ)
+        next_dt, slot = next_run_after(now)
+        delay = (next_dt - now).total_seconds()
+        if delay > 0:
+            await asyncio.sleep(delay)
+        try:
+            await run_reminders(slot)
+        except Exception as e:
+            print(f"Erro no lembrete: {e}")
+
 # ======= Self ping for trying to avoid Render sleeping =======
 async def self_ping():
     await asyncio.sleep(10)  # Wait for app init
@@ -219,5 +334,6 @@ async def self_ping():
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(self_ping())
+    asyncio.create_task(reminders_scheduler())
 
     return {"ok": True}
