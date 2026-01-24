@@ -33,8 +33,8 @@ user_states = {}
 
 # ======= Due-date reminders config =======
 TZ = timezone(timedelta(hours=-3))
-REMINDER_HOURS = [9, 15]
-REMINDER_DAYS = {2, 1, 0}
+REMINDER_HOURS = [9]
+REMINDER_DAYS = {1}
 sent_reminders = set()
 
 
@@ -172,7 +172,7 @@ async def telegram_webhook(update: TelegramUpdate):
                 emoji = pessoa_emojis[i] if i < len(pessoa_emojis) else "👤"
                 msg_lines.append(f"{emoji} *{pessoa}*: {format_currency(total)}")
 
-        # Add status and vencimento info
+        # Add status and deadline info
         msg_lines.append("\n📅 *STATUS E VENCIMENTO:*")
 
         status_emojis = {"ABERTA": "📌", "PAGA": "✅", "ATRASADA": "⚠️"}
@@ -270,7 +270,7 @@ async def run_reminders(slot: str):
         emoji = emojis.get(name, "💳")
         if days_left > 0:
             text = (
-                f"{emoji} Lembrete: faltam {days_left} dia(s) para o vencimento de {name.title()} (Dia {due_day}).\n"
+                f"{emoji} Lembrete: falta {days_left} dia para o vencimento do cartão {name.title()} (Dia {due_day}).\n"
                 f"Valor: {format_currency(total)}\n"
                 f"Situação: {status}\n"
             )
