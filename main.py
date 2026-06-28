@@ -101,8 +101,8 @@ async def telegram_webhook(update: TelegramUpdate):
     if chat_id not in AUTHORIZED_CHAT_IDS:
         await send_message(
             chat_id,
-            "❌ Oops!\n\nI'm sorry, but I don’t recognize your ID.\nOnly authorized users can access this feature.\n"
-            + "If you think this is a mistake, feel free to reach out and I’ll take a look for you. 💁‍♀️"
+            "❌ Oops!\n\nI'm sorry, but I don't recognize your ID.\nOnly authorized users can access this feature.\n"
+            + "If you think this is a mistake, feel free to reach out and I'll take a look for you. 💁‍♀️"
             + "\n\n"
             + "❌ Opa!\n\nDesculpa, mas não reconheço o seu ID.\nApenas usuários autorizados podem acessar este recurso.\n"
             + "Se você acha que isso foi um engano, é só me chamar que eu dou uma olhadinha pra você. 💁‍♀️",
@@ -117,7 +117,7 @@ async def telegram_webhook(update: TelegramUpdate):
         cards = [
             r
             for r in rows
-            if r["CARTÃO"].strip().upper() in {"NUBANK", "INTER", "SANTANDER"}
+            if r["CARTÃO"].strip().upper() in {"NUBANK", "INTER", "SANTANDER", "MERCPAGO"}
         ]
 
         # Find summary rows
@@ -147,7 +147,7 @@ async def telegram_webhook(update: TelegramUpdate):
         msg_lines = [f"💳 *Faturas do mês: {cards[0]['MÊS'].strip()}*\n"]
 
         # Colors per bank
-        emojis = {"NUBANK": "🟣", "INTER": "🟠", "SANTANDER": "🔴"}
+        emojis = {"NUBANK": "🟣", "INTER": "🟠", "SANTANDER": "🔴", "MERCPAGO": "⚪️"}
 
         # Bills per card
         for card in cards:
@@ -246,9 +246,9 @@ async def run_reminders(slot: str):
     cards = [
         r
         for r in rows
-        if r["CARTÃO"].strip().upper() in {"NUBANK", "INTER", "SANTANDER"}
+        if r["CARTÃO"].strip().upper() in {"NUBANK", "INTER", "SANTANDER", "MERCPAGO"}
     ]
-    emojis = {"NUBANK": "🟣", "INTER": "🟠", "SANTANDER": "🔴"}
+    emojis = {"NUBANK": "🟣", "INTER": "🟠", "SANTANDER": "🔴", "MERCPAGO": "⚪️"}
 
     for card in cards:
         name = card["CARTÃO"].strip().upper()
